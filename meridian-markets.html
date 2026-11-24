@@ -1,0 +1,109 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Meridian: Living Markets</title>
+<style>
+:root{--bg:#0e1116;--s:#171b22;--s2:#252b36;--t:#e8ecf2;--m:#8a94a6;--g:#22c55e;--r:#ef4444;--a:#4f8cff;color-scheme:dark light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root{--bg:#f3f5f8;--s:#fff;--s2:#e3e8ef;--t:#14181f;--m:#667085}}
+body{margin:0;background:var(--bg);color:var(--t);font:15px system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--s);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--s2)}
+main{padding:6px 12px 90px}h2{margin:10px 0 4px}h3{margin:16px 0 4px}
+.card{background:var(--s);border-radius:12px;padding:12px;margin:8px 0;line-height:1.5}
+.f{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+small{color:var(--m)}.big{font-size:24px;display:block}.g{color:var(--g)}.r{color:var(--r)}
+button{border:0;border-radius:8px;padding:8px 10px;margin:3px 3px 0 0;background:var(--g);color:#fff;font-weight:700}
+button.alt{background:var(--a)}button.bad{background:var(--r)}button.bk{background:var(--s2);color:var(--t)}
+.fi{background:var(--s);border-left:4px solid var(--a);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px}
+.fi.shock{border-color:var(--r)}.fi.credit{border-color:#f59e0b}.fi.deal,.fi.invest{border-color:var(--g)}.fi.earn{border-color:#a855f7}
+.lr{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--s2)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--s);border-top:1px solid var(--s2);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;background:none;color:var(--m);margin:0;border-radius:0;padding:12px 0;font-size:12px}nav button.on{color:var(--a)}
+#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#000d;color:#fff;padding:8px 14px;border-radius:10px;opacity:0;transition:opacity .3s;z-index:9}
+</style></head><body>
+<header><div><b>Meridian</b> <small id="day"></small></div><div><b id="nw"></b> <button class="bk" id="pz" onclick="S.run=!S.run;render()"></button><button class="bk" id="sp" onclick="S.sp=S.sp===1?3:1;render()"></button></div></header>
+<main id="v"></main><nav id="nav"></nav><div id="toast"></div>
+<script>
+const $=i=>document.getElementById(i),R=(a,b)=>a+Math.random()*(b-a),N=()=>(Math.random()+Math.random()+Math.random()-1.5)*1.15;
+const f$=n=>{const a=Math.abs(n),s=n<0?'-':'';return s+'$'+(a>=1e9?(a/1e9).toFixed(2)+'B':a>=1e6?(a/1e6).toFixed(2)+'M':Math.round(a).toLocaleString('en-US'))};
+const D=[['AAPL','Apple','Tech',230,60,1.05,.25,['TSM','UPS']],['MSFT','Microsoft','Tech',430,75,.7,.35,['NVDA','AMZN']],['NVDA','NVIDIA','Tech',140,35,.4,.5,['TSM']],['TSM','TSMC','Tech',190,70,.25,.4,['XOM','CAT']],['TSLA','Tesla','Auto',340,35,.3,.1,['NVDA','UPS']],['AMZN','Amazon','Retail',200,90,1.7,.08,['NVDA','UPS','XOM']],['GOOGL','Alphabet','Tech',175,95,.9,.3,['NVDA','TSM']],['JPM','JPMorgan Chase','Bank',245,60,.45,.3,['MSFT']],['XOM','ExxonMobil','Energy',115,30,1,.1,['CAT']],['UPS','UPS','Logistics',130,6,.25,.09,['XOM','TSLA']],['DAL','Delta Air Lines','Airline',55,4,.15,.08,['XOM','BA']],['WMT','Walmart','Retail',95,10,1.8,.04,['UPS','XOM']],['BA','Boeing','Industrial',175,12,.2,.05,['CAT','XOM']],['CAT','Caterpillar','Industrial',380,7,.18,.14,['XOM']],['PFE','Pfizer','Health',26,9,.16,.2,['UPS']],['NKE','Nike','Consumer',78,9,.13,.12,['UPS','WMT']]];
+const GB={Tech:1,Auto:1,Retail:.6,Bank:.9,Energy:.8,Logistics:.8,Airline:1.1,Industrial:1,Health:.4,Consumer:.8},RB={Tech:1.2,Auto:1,Retail:.6,Bank:-.8,Energy:.2,Logistics:.6,Airline:.9,Industrial:.6,Health:.3,Consumer:.6};
+const IND={nfp:['Nonfarm Payrolls','k',180,'Monthly change in US jobs. Strong prints lift growth but raise rate fears.'],cpi:['CPI inflation (YoY)','%',3.1,'Consumer prices. A hot print pushes the Fed to hike and hits growth stocks.'],rate:['Fed Funds Rate','%',4.5,'Policy rate set at FOMC. Drives loan costs, savings yield and bank profits.'],un:['Unemployment','%',4.1,'Released with payrolls. Rises when hiring slows.'],gdp:['GDP growth','%',2.4,'Quarterly growth. Lifts or cuts profits across all companies.']};
+const CAL={nfp:[20,5,'NFP jobs report'],cpi:[20,12,'CPI inflation'],rate:[40,30,'FOMC rate decision'],gdp:[60,45,'GDP release']};
+const OFF=[['TSM',60000,1],['AAPL',90000,2],['XOM',50000,1],['AMZN',110000,2],['DAL',40000,1]];
+const LIFE=[['Manhattan penthouse',850000,.0002],['Porsche 911',140000,-.0004],['Rolex Daytona',40000,.0001],['Napa vineyard',600000,.0003]];
+const KEY='meridian-v1';
+function fresh(){const K=D.map(([t,n,s,p,c,r,mg,sup])=>({t,n,s,p,p0:p,pv:p,m:1,c:c*1e9,c0:c*1e9,r:r*1e9,mg,sup,out:0,debt:0,h:[p],led:[]}));const I={};for(const k in IND){const v=IND[k][2];I[k]={v,pv:v,fc:v,h:[v]}}
+return{d:0,K,I,P:{cash:500000,sav:0,hold:{},cost:{},life:{}},Y:{name:'Halcyon Systems',c:2.5e6,debt:0,own:1,cap:2,con:[],led:[],dp:0},feed:[{d:0,g:'macro',t:'Markets open. Simulated prices and events; company names used for realism only.'}],run:1,sp:1}}
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S||!S.K)S=fresh();
+let V='home',acc=0;
+const K=t=>S.K.find(k=>k.t===t),log=(t,g)=>{S.feed.unshift({d:S.d,g,t});S.feed.length=Math.min(S.feed.length,60)},led=(o,t,a)=>{o.led.unshift([S.d,t,a]);o.led.length=Math.min(o.led.length,12)};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const cls=x=>x>=0?'g':'r',pc=x=>(x>=0?'+':'')+(x*100).toFixed(2)+'%';
+function shock(g,r){S.K.forEach(k=>k.m*=1+g*GB[k.s]-r*RB[k.s]+N()*.003)}
+function release(k){const I=S.I[k];I.pv=I.v;let g=0,r=0;
+if(k==='nfp'){I.fc=Math.round(I.pv+R(-20,20));I.v=Math.round(I.fc+N()*70);const s=(I.v-I.fc)/70;g=s*.008;r=s*.003;const u=S.I.un;u.pv=u.v;u.fc=u.v;u.v=+Math.min(8,Math.max(3,u.v+(150-I.v)/4000+N()*.05)).toFixed(1);u.h.push(u.v)}
+if(k==='cpi'){I.fc=+(I.pv+R(-.1,.1)).toFixed(1);I.v=+(I.fc+N()*.15).toFixed(1);const s=(I.v-I.fc)/.15;g=-s*.005;r=s*.01}
+if(k==='gdp'){I.fc=+(I.pv+R(-.2,.2)).toFixed(1);I.v=+(I.fc+N()*.4).toFixed(1);g=(I.v-I.fc)*.02}
+if(k==='rate'){const c=S.I.cpi.v;I.fc=I.pv+(c>3.3?.25:c<2.5?-.25:0);I.v=Math.max(0,I.fc+(Math.random()<.25?(Math.random()<.5?.25:-.25):0));I.fc=+I.fc.toFixed(2);I.v=+I.v.toFixed(2);r=(I.v-I.fc)*.06+(I.v-I.pv)*.02}
+I.h.push(I.v);shock(g,r);log(IND[k][0]+': '+I.v+IND[k][1]+' vs '+I.fc+IND[k][1]+' forecast (prior '+I.pv+IND[k][1]+')','macro')}
+function events(){const r=Math.random();
+if(r<.05){const t=['TSM','XOM','NVDA','UPS'][Math.floor(R(0,4))],k=K(t);if(!k.out){k.out=6;k.m*=.94;const cu=S.K.filter(x=>x.sup.includes(t));cu.forEach(x=>x.m*=.975);log(k.n+' disruption cuts output for 6 days. Customers hit: '+cu.map(x=>x.t).join(', '),'shock')}}
+else if(r<.11){const k=S.K[Math.floor(R(0,S.K.length))],cost=k.r*30;k.r*=1.03;k.m*=1.015;const need=cost-k.c;
+if(need>0&&k.t!=='JPM'){const amt=need+k.r,j=K('JPM');j.c-=amt;k.c+=amt;k.debt+=amt;led(k,'JPMorgan credit line',amt);log('JPMorgan extended '+f$(amt)+' credit to '+k.n+' at '+(S.I.rate.v+2.5).toFixed(2)+'%','credit')}
+k.c-=cost;led(k,'Capex expansion',-cost);log(k.n+' announced a '+f$(cost)+' expansion','invest')}}
+function day(){S.d++;const d=S.d,rate=S.I.rate.v,econ=1+(S.I.gdp.v-2)*.03,j=K('JPM');
+for(const k in CAL)if(d%CAL[k][0]===CAL[k][1])release(k);
+S.K.forEach((k,i)=>{k.pv=k.p;if(k.out>0)k.out--;const outs=k.sup.filter(t=>K(t).out>0).length,sf=Math.pow(.75,outs)*(k.out>0?.3:1),prof=k.r*k.mg*econ*sf;k.c+=prof;
+const it=k.debt*(rate+2.5)/36500;if(it){k.c-=it;j.c+=it}
+const per=prof*.4/Math.max(1,k.sup.length);
+k.sup.forEach(t=>{const s=K(t);k.c-=per;s.c+=per;led(k,'Order to '+t,-per);led(s,'Order from '+k.t,per);if(Math.random()<.015)log(k.n+' placed a '+f$(per*10)+' order with '+s.n,'deal')});
+if(k.debt>0&&k.c>k.r*15){const p=Math.min(k.debt,k.c*.1);k.debt-=p;k.c-=p;j.c+=p}
+if((d+i*4)%64===0){const sp=N();k.m*=1+.04*sp;log(k.t+(sp>0?' beat':' missed')+' quarterly earnings estimates','earn')}
+const fair=k.p0*k.m*(1+(k.c-k.c0)/(k.c0*10));k.p=Math.max(1,k.p*(1+N()*.009+(fair-k.p)/k.p*.04));k.h.push(+k.p.toFixed(2));if(k.h.length>60)k.h.shift()});
+events();
+const Y=S.Y;let inc=0;Y.con.forEach(i=>{const[t,pay]=OFF[i],b=K(t);if(b.c>pay*5){b.c-=pay;led(b,'Supply contract: '+Y.name,-pay);Y.c+=pay*.6;inc+=pay*.6}});
+if(Y.debt)Y.c-=Y.debt*(rate+3)/36500;Y.dp=inc;if(inc&&d%5===0)led(Y,'Contract receipts',inc);
+S.P.sav*=1+Math.max(0,rate-.5)/36500;for(const i in S.P.life)S.P.life[i].v*=1+LIFE[i][2];
+if(d%5===0)save()}
+const valY=()=>Math.max(S.Y.dp*365*8+S.Y.c-S.Y.debt,S.Y.c-S.Y.debt+1e6);
+const netW=()=>{const P=S.P;let w=P.cash+P.sav+S.Y.own*valY();for(const t in P.hold)w+=P.hold[t]*K(t).p;for(const i in P.life)w+=P.life[i].v;return w};
+const idx=()=>S.K.reduce((a,k)=>a+k.p/k.p0*100,0)/S.K.length;
+function toast(m){const e=$('toast');e.textContent=m;e.style.opacity=1;clearTimeout(toast.h);toast.h=setTimeout(()=>e.style.opacity=0,1800)}
+function trade(t,q){const k=K(t),P=S.P,h=P.hold[t]||0;if(q>0){const c=k.p*q;if(P.cash<c)return toast('Not enough cash');P.cash-=c;P.cost[t]=(P.cost[t]||0)+c;P.hold[t]=h+q}else{q=Math.min(-q,h);if(!q)return toast('No shares to sell');P.cash+=k.p*q;P.cost[t]*=1-q/h;P.hold[t]=h-q;if(!P.hold[t])delete P.hold[t]}render()}
+function sv(x){const P=S.P;if(x>0?P.cash<x:P.sav<-x)return toast('Insufficient balance');P.cash-=x;P.sav+=x;render()}
+function life(i){const P=S.P;if(P.cash<LIFE[i][1])return toast('Not enough cash');P.cash-=LIFE[i][1];P.life[i]={v:LIFE[i][1]};render()}
+function cap(){const Y=S.Y;if(Y.c<4e5)return toast('Company account too low');Y.c-=4e5;Y.cap++;led(Y,'Capacity expansion',-4e5);render()}
+function fund(){const Y=S.Y;if(Y.own<=.4)return toast('Investors already hold 60%');const a=valY()*.1;Y.own-=.1;Y.c+=a;led(Y,'Northbridge Ventures round',a);log(Y.name+' raised '+f$(a)+' from Northbridge Ventures for 10% equity','invest');render()}
+function loan(x){const Y=S.Y;if(x<0&&(Y.debt<-x||Y.c<-x))return toast('Cannot repay that');Y.debt+=x;Y.c+=x;led(Y,x>0?'Bank loan':'Loan repayment',x);render()}
+function pay(x){const Y=S.Y;if(Y.c<x)return toast('Company account too low');Y.c-=x;S.P.cash+=x;led(Y,'Salary to owner',-x);render()}
+function divd(x){const Y=S.Y;if(Y.c<x)return toast('Company account too low');Y.c-=x;S.P.cash+=x*Y.own;led(Y,'Dividend paid',-x);render()}
+function con(i){const Y=S.Y,x=Y.con.indexOf(i);if(x>=0)Y.con.splice(x,1);else{if(Y.con.reduce((a,j)=>a+OFF[j][2],0)+OFF[i][2]>Y.cap)return toast('Not enough capacity');Y.con.push(i)}render()}
+const go=v=>{V=v;render();scrollTo(0,0)},bt=(x,f,c='')=>`<button class="${c}" onclick="${f}">${x}</button>`,lk=t=>bt(t,`go('co:${t}')`,'alt');
+function spark(a,w=300,h=60){const mn=Math.min(...a),sp=Math.max(...a)-mn||1;return`<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}"><polyline fill="none" stroke="${a[a.length-1]>=a[0]?'var(--g)':'var(--r)'}" stroke-width="2" points="${a.map((v,i)=>(i/(a.length-1||1)*w).toFixed(1)+','+(h-(v-mn)/sp*(h-4)-2).toFixed(1)).join(' ')}"/></svg>`}
+const feed=(n,g)=>S.feed.filter(x=>!g||g.includes(x.g)).slice(0,n).map(x=>`<div class="fi ${x.g}"><small>Day ${x.d} · ${x.g}</small><br>${x.t}</div>`).join('')||'<small>Nothing yet</small>';
+const ledg=a=>a.map(x=>`<div class="lr"><span>Day ${x[0]} ${x[1]}</span><span class="${cls(x[2])}">${f$(x[2])}</span></div>`).join('')||'<small>No entries yet</small>';
+const cal=()=>Object.keys(CAL).map(k=>{const[p,o,n]=CAL[k],x=(o-S.d%p+p)%p;return`<div class="lr"><span>${n}</span><span>${x?'in '+x+' days':'today'}</span></div>`}).join('');
+function vHome(){const P=S.P;return`<div class="card"><small>Net worth</small><b class="big">${f$(netW())}</b><small>Sim index ${idx().toFixed(1)} · Fed ${S.I.rate.v}% · CPI ${S.I.cpi.v}%</small></div>
+<div class="row"><div class="card"><small>Personal account</small><br><b>${f$(P.cash)}</b></div><div class="card"><small>${S.Y.name} account</small><br><b>${f$(S.Y.c)}</b></div></div>
+<h3>Economic calendar</h3><div class="card">${cal()}</div><h3>Live feed</h3>${feed(20)}`}
+function vMkt(){return`<h2>Stock market</h2><small>Simulated prices. Tap a company for its page.</small>`+S.K.map(k=>`<div class="card f" onclick="go('co:${k.t}')"><div><b>${k.t}</b> <small>${k.n}</small></div><div style="text-align:right"><b>$${k.p.toFixed(2)}</b><br><span class="${cls(k.p/k.pv-1)}">${pc(k.p/k.pv-1)}</span></div></div>`).join('')}
+function vCo(t){const k=K(t),h=S.P.hold[t]||0,cu=S.K.filter(x=>x.sup.includes(t));return`${bt('← Markets',"go('mkt')",'bk')}<h2>${k.n} <small>${k.t} · ${k.s}</small></h2>
+<div class="card"><b class="big">$${k.p.toFixed(2)} <span class="${cls(k.p/k.pv-1)}" style="font-size:15px">${pc(k.p/k.pv-1)}</span></b>${spark(k.h)}</div>
+${k.out?`<div class="fi shock">Operational disruption: ${k.out} days left</div>`:''}
+<div class="card"><b>Company account</b><br>Cash ${f$(k.c)}<br>Debt to JPMorgan ${f$(k.debt)}<br>Daily revenue ${f$(k.r)} · margin ${(k.mg*100).toFixed(0)}%</div>
+<div class="card"><b>Your position</b><br>${h} shares · ${f$(h*k.p)}${h?' · P&L '+f$(h*k.p-S.P.cost[t]):''}<br>${[1,10,100].map(q=>bt('Buy '+q,`trade('${t}',${q})`)).join('')}${[1,10,100].map(q=>bt('Sell '+q,`trade('${t}',-${q})`,'bad')).join('')}</div>
+<h3>Supply web</h3><div class="card">Buys from: ${k.sup.map(lk).join('')||'none'}<br>Sells to: ${cu.map(x=>lk(x.t)).join('')||'none'}</div><h3>Account ledger</h3><div class="card">${ledg(k.led)}</div>`}
+function vEco(){return`<h2>Economy</h2>`+Object.keys(IND).map(k=>{const I=S.I[k],u=IND[k][1];return`<div class="card f" onclick="go('ind:${k}')"><div><b>${IND[k][0]}</b><br><small>Forecast ${I.fc}${u} · Prior ${I.pv}${u}</small></div><b class="big">${I.v}${u}</b></div>`}).join('')+`<h3>Calendar</h3><div class="card">${cal()}</div><h3>Macro news</h3>${feed(12,'macro')}`}
+function vInd(k){const I=S.I[k],u=IND[k][1];return`${bt('← Economy',"go('eco')",'bk')}<h2>${IND[k][0]}</h2><div class="card"><b class="big">${I.v}${u}</b><small>${IND[k][3]}</small>${spark(I.h)}</div><h3>History</h3><div class="card">${I.h.slice().reverse().slice(0,15).map((v,i)=>`<div class="lr"><span>Release ${I.h.length-i}</span><span>${v}${u}</span></div>`).join('')}</div>`}
+function vNet(){return`<h2>Deal network</h2><small>Companies order from suppliers, borrow from JPMorgan and expand. Disruptions ripple to customers.</small>`+S.K.map(k=>`<div class="card" onclick="go('co:${k.t}')"><b>${k.t}</b> buys from ${k.sup.join(', ')}<br><small>Cash ${f$(k.c)} · Debt ${f$(k.debt)}</small></div>`).join('')+`<h3>Deals, credit and shocks</h3>`+feed(25,'deal credit invest shock earn')}
+function vFirm(){const Y=S.Y,used=Y.con.reduce((a,i)=>a+OFF[i][2],0);return`<h2>${Y.name}</h2><div class="card"><b>Company account</b><br>Cash ${f$(Y.c)} · Debt ${f$(Y.debt)}<br>Valuation ${f$(valY())} · You own ${(Y.own*100).toFixed(0)}%<br>Daily profit ${f$(Y.dp)} · Capacity ${used}/${Y.cap}</div>
+<div class="card">${bt('Expand capacity $400k','cap()')}${bt('Raise 10% round','fund()')}${bt('Borrow $500k','loan(500000)')}${bt('Repay $500k','loan(-500000)','bad')}<br>${bt('Salary $20k to me','pay(20000)','alt')}${bt('Dividend $100k','divd(100000)','alt')}</div>
+<h3>Supply contracts</h3>`+OFF.map((o,i)=>{const on=Y.con.includes(i);return`<div class="card f"><div><b>Supply ${K(o[0]).n}</b><br><small>${f$(o[1])}/day · needs ${o[2]} capacity · paid from their account</small></div>${bt(on?'End':'Sign',`con(${i})`,on?'bad':'')}</div>`}).join('')+`<h3>Account ledger</h3><div class="card">${ledg(Y.led)}</div>`}
+function vMe(){const P=S.P;return`<h2>Personal account</h2><div class="card"><b>Checking ${f$(P.cash)}</b><br>Savings ${f$(P.sav)} · earns ${Math.max(0,S.I.rate.v-.5).toFixed(2)}%<br>${bt('Save $50k','sv(50000)')}${bt('Withdraw $50k','sv(-50000)','bad')}</div><h3>Portfolio</h3>`+(Object.keys(P.hold).map(t=>{const k=K(t),h=P.hold[t],pl=h*k.p-P.cost[t];return`<div class="card f" onclick="go('co:${t}')"><div><b>${t}</b> ${h} shares<br><small>${f$(h*k.p)}</small></div><b class="${cls(pl)}">${f$(pl)}</b></div>`}).join('')||'<small>No holdings yet. Open Markets.</small>')+`<h3>Lifestyle</h3>`+LIFE.map((x,i)=>`<div class="card f"><div><b>${x[0]}</b><br><small>${f$(x[1])} · ${P.life[i]?'Owned, worth '+f$(P.life[i].v):'Not owned'}</small></div>${P.life[i]?'':bt('Buy','life('+i+')')}</div>`).join('')}
+const NAV=[['home','Home'],['mkt','Markets'],['eco','Economy'],['net','Deals'],['firm','My Firm'],['me','Me']];
+function view(){const[a,b]=V.split(':');return({home:vHome,mkt:vMkt,eco:vEco,net:vNet,firm:vFirm,me:vMe,co:()=>vCo(b),ind:()=>vInd(b)})[a]()}
+function render(){$('nw').textContent=f$(netW());$('day').textContent='Day '+S.d;$('pz').textContent=S.run?'Pause':'Play';$('sp').textContent='x'+S.sp;
+const c=V.startsWith('co')?'mkt':V.startsWith('ind')?'eco':V;$('nav').innerHTML=NAV.map(([k,l])=>`<button class="${c===k?'on':''}" onclick="go('${k}')">${l}</button>`).join('');$('v').innerHTML=view()}
+setInterval(()=>{if(!S.run)return;acc+=S.sp;if(acc>=3){acc=0;day();render()}},1000);
+render();
+</script></body></html>
